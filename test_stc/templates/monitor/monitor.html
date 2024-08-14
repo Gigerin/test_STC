@@ -8,6 +8,7 @@
 <body>
     <h1>Listening Ports</h1>
         <p>Last updated: <span id="last-updated">Never</span></p>
+        <p>IP address: <span id="ip-address">None</span></p>
 
     <table id="output-table" border="1">
         <thead>
@@ -31,6 +32,7 @@
     <script>
         function updateTable() {
             $.get("{% url 'get_output' %}", function(data) {
+                console.log(JSON.stringify(data))
                 var tableBody = $('#output-table tbody');
                 tableBody.empty();  // Clear the table
                 if (data.output) {
@@ -45,6 +47,7 @@
                 var now = new Date();
                 var formattedTime = now.toLocaleTimeString();
                 $('#last-updated').text(formattedTime);
+                $('#ip-address').text(data['ip_address']);
             });
         }
 
