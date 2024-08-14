@@ -7,16 +7,24 @@ from .forms import SSHConnectionForm
 import threading
 import time
 
+class SSHConnectionManager:
+    _instance = None
 
-@contextmanager
-def ssh_connection(hostname, port, username, password):
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(hostname, port=port, username=username, password=password)
-    try:
-        yield client
-    finally:
-        client.close()
+    def __new__(cls, hostname, port, username, password):
+        if cls._instance is None:
+            cls._instance = super(SSHConnectionManager, cls).__new__(cls)
+            cls._instance.client = paramiko.SSHClient()
+            cls._instance.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            cls._instance.client.connect(hostname, port=port, username=username, password=password)
+        return cls._instance
+
+    def get_client(self):
+        return self.client
+
+    def close(self):
+        if self.client:
+            self.client.close()
+            SSHConnectionManager._instance = None
 
 
 def execute_ssh_command(client, command):
@@ -45,6 +53,11 @@ def ssh_connect(request):
     return render(request, "monitor/connect.html", {"form": form})
 
 
+def execute_ssh_command(client, command):
+    stdin, stdout, stderr = client.exec_command(command)
+    return stdout.read().decode()
+
+
 def get_output(request):
     if request.method == "GET":
         ssh_details = request.session.get("ssh_client_details", None)
@@ -54,10 +67,12 @@ def get_output(request):
             password = ssh_details["password"]
             port = ssh_details["port"]
 
-            with ssh_connection(hostname, port, username, password) as client:
-                output = execute_ssh_command(
-                    client, f"echo {password} | sudo -S lsof -i -P -n | grep LISTEN"
-                )
+            ssh_manager = SSHConnectionManager(hostname, port, username, password)
+            client = ssh_manager.get_client()
+
+            output = execute_ssh_command(
+                client, f"echo {password} | sudo -S lsof -i -P -n | grep LISTEN"
+            )
 
             output_lines = output.strip().split("\n")
             output_data = [line.split() for line in output_lines]
