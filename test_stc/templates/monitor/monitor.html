@@ -1,0 +1,57 @@
+<!-- templates/monitor/monitor.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monitor SSH Output</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Listening Ports</h1>
+        <p>Last updated: <span id="last-updated">Never</span></p>
+
+    <table id="output-table" border="1">
+        <thead>
+            <tr>
+                <th>COMMAND</th>
+                <th>PID</th>
+                <th>USER</th>
+                <th>FD</th>
+                <th>TYPE</th>
+                <th>DEVICE</th>
+                <th>SIZE/OFF</th>
+                <th>NODE</th>
+                <th>NAME</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Rows will be dynamically added here -->
+        </tbody>
+    </table>
+
+    <script>
+        function updateTable() {
+            $.get("{% url 'get_output' %}", function(data) {
+                var tableBody = $('#output-table tbody');
+                tableBody.empty();  // Clear the table
+                if (data.output) {
+                    data.output.forEach(function(row) {
+                        var tr = $('<tr>');
+                        row.forEach(function(cell) {
+                            $('<td>').text(cell).appendTo(tr);
+                        });
+                        tableBody.append(tr);
+                    });
+                }
+                var now = new Date();
+                var formattedTime = now.toLocaleTimeString();
+                $('#last-updated').text(formattedTime);
+            });
+        }
+
+        $(document).ready(function() {
+            updateTable();  // Initial load
+            setInterval(updateTable, 10000);  // Refresh every 10 seconds
+        });
+    </script>
+</body>
+</html>

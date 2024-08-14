@@ -1,0 +1,15 @@
+<!-- templates/monitor/connect.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSH Connection</title>
+</head>
+<body>
+    <h1>Enter SSH Connection Details</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Connect</button>
+    </form>
+</body>
+</html>
