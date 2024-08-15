@@ -21,6 +21,9 @@ class SSHConnectionManager:
             except (NoValidConnectionsError, SSHException, AuthenticationException) as e:
                 cls._instances[session_key] = None
                 raise e
+            except Exception as e:
+                cls._instances[session_key] = None
+                raise e
         return cls._instances[session_key]
 
     def get_client(self):
@@ -73,13 +76,15 @@ def execute_ssh_command(client, command):
         stdin, stdout, stderr = client.exec_command(command)
         return stdout.read().decode()
     except SSHException as e:
-        return f"Command execution failed: {str(e)}"
-
+        raise e
+    except Exception as e:
+        raise e
 
 def get_output(request):
     if request.method == "GET":
         ssh_details = request.session.get("ssh_client_details", None)
         if ssh_details:
+            session_key = request.session.session_key
             try:
                 hostname = ssh_details["hostname"]
                 username = ssh_details["username"]
@@ -93,7 +98,6 @@ def get_output(request):
                     password=password
                 )
                 client = ssh_manager.get_client()
-
                 output = execute_ssh_command(
                     client, f"echo {ssh_details['password']} | sudo -S lsof -i -P -n | grep LISTEN"
                 )
@@ -102,5 +106,7 @@ def get_output(request):
                 return JsonResponse({"output": output_data, "ip_address": ssh_details["hostname"]})
 
             except (NoValidConnectionsError, SSHException, AuthenticationException) as e:
-                return JsonResponse({"error": f"SSH operation failed: {str(e)}"}, status=500)
+                return JsonResponse({"error": f"SSH operation failed: {str(e)}"})
+            except Exception as e:
+                return JsonResponse({"error": f"SSH operation failed: {str(e)}"})
     return JsonResponse({"error": "Invalid request"}, status=400)
