@@ -11,7 +11,7 @@ class SSHConnectionManager:
     _instances = {}
 
     def __new__(cls, session_key, hostname=None, port=None, username=None, password=None):
-        if session_key not in cls._instances:
+        if session_key not in cls._instances or not cls._instances[session_key]:
             instance = super(SSHConnectionManager, cls).__new__(cls)
             instance.client = paramiko.SSHClient()
             instance.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -80,21 +80,27 @@ def get_output(request):
     if request.method == "GET":
         ssh_details = request.session.get("ssh_client_details", None)
         if ssh_details:
-            session_key = request.session.session_key
-
             try:
-                ssh_manager = SSHConnectionManager(session_key=session_key)
+                hostname = ssh_details["hostname"]
+                username = ssh_details["username"]
+                password = ssh_details["password"]
+                port = ssh_details["port"]
+                ssh_manager = SSHConnectionManager(
+                    session_key=request.session.session_key,
+                    hostname=hostname,
+                    port=port,
+                    username=username,
+                    password=password
+                )
                 client = ssh_manager.get_client()
 
                 output = execute_ssh_command(
                     client, f"echo {ssh_details['password']} | sudo -S lsof -i -P -n | grep LISTEN"
                 )
-
                 output_lines = output.strip().split("\n")
                 output_data = [line.split() for line in output_lines]
                 return JsonResponse({"output": output_data, "ip_address": ssh_details["hostname"]})
 
             except (NoValidConnectionsError, SSHException, AuthenticationException) as e:
                 return JsonResponse({"error": f"SSH operation failed: {str(e)}"}, status=500)
-
     return JsonResponse({"error": "Invalid request"}, status=400)
