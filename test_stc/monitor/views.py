@@ -8,6 +8,10 @@ import threading
 import time
 
 class SSHConnectionManager:
+    """
+    Синглетон для хранения подключения к серверу. Нужен, чтобы не
+    подключаться по SSH по каждому запросу заново.
+    """
     _instances = {}
 
     def __new__(cls, session_key, hostname=None, port=None, username=None, password=None):
@@ -37,6 +41,11 @@ class SSHConnectionManager:
             cls._instances[session_key].client.close()
             del cls._instances[session_key]
 def ssh_connect(request):
+    """
+    Устанавливает изначальное SSH соединение
+    :param request:
+    :return:
+    """
     if request.method == "POST":
         form = SSHConnectionForm(request.POST)
         if form.is_valid():
@@ -72,6 +81,7 @@ def ssh_connect(request):
 
 
 def execute_ssh_command(client, command):
+    " При имеющемся SSH подключении исполняет команду"
     try:
         stdin, stdout, stderr = client.exec_command(command)
         return stdout.read().decode()
@@ -81,6 +91,11 @@ def execute_ssh_command(client, command):
         raise e
 
 def get_output(request):
+    """
+    По запросу получает список портов и возвращает его на сервер
+    :param request:
+    :return:
+    """
     if request.method == "GET":
         ssh_details = request.session.get("ssh_client_details", None)
         if ssh_details:
